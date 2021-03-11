@@ -1,0 +1,76 @@
+---
+- name: Playbook to setup user for ansible automation
+  hosts: all
+  vars:
+    ansible_user_name: "{{ vault_ansible_user_name }}"
+    ansible_user_uid_nr: "{{ vault_ansible_user_uid_nr }}"
+    ansible_user_pubkey_path: "{{ vault_ansible_user_pubkey_path }}"
+    ansible_user_pass: "{{ vault_ansible_user_pass }}"
+    su_or_sudo: "{{ vault_su_or_sudo }}"
+    root_pass: "{{ vault_root_pass }}"
+    ssh_port_new: "{{ vault_ssh_port_new }}"
+
+  tasks:
+    - name: Set password for root user
+      user:
+        name: root
+        password: "{{ root_pass | password_hash('sha512', 65534 |
+                  random(seed=inventory_hostname) | string) | mandatory }}"
+        state: present
+      when: (root_pass != none) or
+            (su_or_sudo == 'su')
+
+    - name: >
+        Workaround for nested variables(vault var in another var)
+        and default() filter (bug?)
+      set_fact:
+        ansible_user_uid_nr: null
+      when: (vault_ansible_user_uid_nr == none) or
+            (vault_ansible_user_uid_nr | type_debug != "int")
+    - name: Create new user {{ ansible_user_name }} for ansible
+      user:
+        name: "{{ ansible_user_name }}"
+        uid: "{{ ansible_user_uid_nr }}"
+        password: "{{ ansible_user_pass | password_hash('sha512', 65534 |
+                  random(seed=inventory_hostname) | string) | mandatory }}"
+        shell: '/bin/bash'
+        state: present
+
+    - name: Add ssh pub key for user {{ ansible_user_name }}
+      authorized_key:
+        user: "{{ ansible_user_name }}"
+        key: "{{ lookup('file', ansible_user_pubkey_path) }}"
+        state: present
+
+    - name: Install sudo using apt
+      apt:
+        name: sudo
+        install_recommends: false
+        state: present
+      when: su_or_sudo == 'sudo'
+
+    - name: Add user {{ ansible_user_name }} to sudoers
+      template:
+        src: sudoers.d.j2
+        dest: /etc/sudoers.d/{{ ansible_user_name }}
+        mode: 0440
+        validate: /usr/sbin/visudo -cf %s
+      when: su_or_sudo == 'sudo'
+
+    - name: Change ssh port to {{ ssh_port_new }}
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#Port '
+        line: 'Port {{ ssh_port_new }}'
+        backrefs: true
+        state: present
+      when: vault_ssh_port_new | type_debug == 'int'
+      notify:
+        - Reload ssh config
+
+
+  handlers:
+    - name: Reload ssh config
+      service:
+        name: ssh
+        state: restarted
