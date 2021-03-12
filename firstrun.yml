@@ -60,17 +60,17 @@
     - name: Change ssh port to {{ ssh_port_new }}
       lineinfile:
         path: /etc/ssh/sshd_config
-        regexp: '^#Port '
+        regexp: '^#Port 22'
         line: 'Port {{ ssh_port_new }}'
         backrefs: true
         state: present
       when: vault_ssh_port_new | type_debug == 'int'
       notify:
-        - Reload ssh config
+        - Restart ssh
 
 
   handlers:
-    - name: Reload ssh config
+    - name: Restart ssh
       service:
         name: ssh
         state: restarted
