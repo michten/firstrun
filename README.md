@@ -10,11 +10,11 @@ Tested on Buster only.
 ## How to use
 Few options may be used, thorough variables in host/group vaults.
 Create vault file with variables:
-vault_ansible_user_name
-vault_ansible_user_uid_nr       (optional)
-vault_ansible_user_pubkey_path
-vault_ansible_user_pass
-vault_su_or_sudo                (su or sudo)
-vault_root_pass
-vault_ssh_port_new              (optional)
+- vault_ansible_user_name
+- vault_ansible_user_uid_nr       (optional)
+- vault_ansible_user_pubkey_path
+- vault_ansible_user_pass
+- vault_su_or_sudo                (su or sudo)
+- vault_root_pass
+- vault_ssh_port_new              (optional)
 
